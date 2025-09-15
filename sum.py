@@ -5,16 +5,15 @@ AI Study Assistant (Gemini Free API Version)
 import io
 import json
 import streamlit as st
-from typing import Optional
 import google.generativeai as genai
 
 # 🔹 Configure Gemini API with your key
 GEMINI_API_KEY = "AIzaSyAovY7_L07gri_mNN4Xod6-gmPEYiEJvjY"
 genai.configure(api_key=GEMINI_API_KEY)
 
-MODEL_NAME = "gemini-1.5-flash"  # free, fast, supports long text
+MODEL_NAME = "gemini-1.5-flash"
 
-# PDF extraction libraries
+# Optional libraries
 try:
     import pdfplumber
     _HAS_PDFPLUMBER = True
@@ -27,6 +26,12 @@ try:
 except ImportError:
     _HAS_PYPDF2 = False
 
+try:
+    import graphviz
+    _HAS_GRAPHVIZ = True
+except ImportError:
+    _HAS_GRAPHVIZ = False
+
 # --- Streamlit setup ---
 st.set_page_config(page_title="AI Study Assistant", page_icon=":mortar_board:", layout="wide")
 st.title("AI Study Assistant (Gemini API)")
@@ -38,7 +43,6 @@ num_bullets = st.sidebar.slider("Number of summary bullets", 3, 10, 5)
 num_flashcards = st.sidebar.slider("Number of flashcards", 3, 30, 10)
 num_short_qa = st.sidebar.slider("Number of short Q&A", 3, 20, 8)
 
-
 # --- PDF extraction ---
 def extract_text_from_pdf_bytes(pdf_bytes: bytes) -> str:
     text_pages = []
@@ -48,18 +52,17 @@ def extract_text_from_pdf_bytes(pdf_bytes: bytes) -> str:
                 for p in pdf.pages:
                     text_pages.append(p.extract_text() or "")
             return "\n\n".join(text_pages).strip()
-        except Exception as e:
-            st.warning(f"PDFPlumber error: {e}")
+        except Exception:
+            pass
     if _HAS_PYPDF2:
         try:
             reader = PdfReader(io.BytesIO(pdf_bytes))
             for page in reader.pages:
                 text_pages.append(page.extract_text() or "")
             return "\n\n".join(text_pages).strip()
-        except Exception as e:
-            st.warning(f"PyPDF2 error: {e}")
+        except Exception:
+            pass
     return ""
-
 
 # --- Gemini helper ---
 def call_gemini(prompt: str, model: str = MODEL_NAME) -> str:
@@ -71,7 +74,6 @@ def call_gemini(prompt: str, model: str = MODEL_NAME) -> str:
         st.error(f"Gemini API error: {e}")
         return ""
 
-
 # --- Input section ---
 st.subheader("Input")
 col1, col2 = st.columns([1, 2])
@@ -79,7 +81,6 @@ with col1:
     uploaded_file = st.file_uploader("Upload PDF", type=["pdf"])
     paste_text = st.text_area("Or paste text", height=200)
 
-# Determine input text
 input_text = ""
 if uploaded_file:
     input_text = extract_text_from_pdf_bytes(uploaded_file.read())
@@ -94,11 +95,10 @@ st.subheader("Preview of text")
 with st.expander("Show first 3000 chars"):
     st.text(input_text[:3000] + ("..." if len(input_text) > 3000 else ""))
 
-
 # --- Generation ---
 if st.button("Generate summary, flashcards, Q&A & mind-map"):
     with st.spinner("Talking to Gemini..."):
-        context = input_text[:60000]  # Limit to first 60k characters
+        context = input_text[:60000]
 
         # 1️⃣ Summary
         summary_prompt = f"Summarize the following in {num_bullets} concise bullet points:\n\n{context}"
@@ -140,7 +140,10 @@ if st.button("Generate summary, flashcards, Q&A & mind-map"):
 
     st.header("Mind-map")
     st.code(mindmap_raw, language="dot")
-    try:
-        st.graphviz_chart(mindmap_raw)
-    except Exception:
-        st.error("Could not render Graphviz chart. Check DOT format.")
+    if _HAS_GRAPHVIZ:
+        try:
+            st.graphviz_chart(mindmap_raw)
+        except Exception:
+            st.error("Could not render Graphviz chart. Check DOT format.")
+    else:
+        st.warning("Graphviz not installed, cannot render mind-map chart.")
