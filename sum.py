@@ -9,8 +9,7 @@ import requests
 import streamlit as st
 from typing import Optional
 
-# API constants (replace with your actual key if you want to hardcode)
-OPENAI_API_KEY = "YOUR_API_KEY_HERE"  
+# API constants
 API_URL = "https://api.openai.com/v1/responses"
 MODEL_NAME = "gpt-5-nano"
 
@@ -65,7 +64,7 @@ def extract_text_from_pdf_bytes(pdf_bytes: bytes) -> str:
 def call_openai(prompt: str, max_tokens: int = 800, temperature: float = 0.3) -> str:
     headers = {
         "Content-Type": "application/json",
-        "Authorization": f"Bearer {OPENAI_API_KEY}"
+        "Authorization": f"Bearer {os.getenv('OPENAI_API_KEY')}"  # Read key from Streamlit Secrets/Env
     }
     payload = {
         "model": MODEL_NAME,
@@ -78,9 +77,17 @@ def call_openai(prompt: str, max_tokens: int = 800, temperature: float = 0.3) ->
         resp = requests.post(API_URL, headers=headers, json=payload)
         resp.raise_for_status()
         data = resp.json()
-        # Response format: choices[0].message.content in Chat API,
-        # here it's in 'output_text' (for Responses API).
-        return data.get("output_text", "").strip()
+
+        # Parse new Responses API format
+        if "output" in data:
+            parts = []
+            for item in data["output"]:
+                for c in item.get("content", []):
+                    if c.get("type") == "text":
+                        parts.append(c.get("text", ""))
+            return "\n".join(parts).strip()
+
+        return str(data)
     except Exception as e:
         return f"[API call failed] {e}"
 
