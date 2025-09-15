@@ -11,7 +11,7 @@ import google.generativeai as genai
 # 🔹 Configure Gemini API
 # 👉 Replace with your Gemini API key from Google AI Studio
 GEMINI_API_KEY = "YOUR_GEMINI_API_KEY"
-genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+genai.configure(api_key=st.secrets["AIzaSyAovY7_L07gri_mNN4Xod6-gmPEYiEJvjY"])
 
 MODEL_NAME = "gemini-1.5-flash"  # free, fast, and supports long text
 
@@ -145,4 +145,5 @@ if st.button("Generate summary, flashcards, Q&A & mind-map"):
         st.graphviz_chart(mindmap_raw)
     except:
         st.error("Could not render Graphviz chart")
+
 
