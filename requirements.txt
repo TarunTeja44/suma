@@ -1,5 +1,1 @@
 streamlit
-openai
-pdfplumber
-PyPDF2
-graphviz
