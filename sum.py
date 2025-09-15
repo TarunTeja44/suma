@@ -1,17 +1,19 @@
 """
-AI Study Assistant (Updated for OpenAI Responses API with gpt-5-nano)
+AI Study Assistant (Gemini Free API Version)
 """
 
-import os
-import json
 import io
-import requests
+import json
 import streamlit as st
 from typing import Optional
+import google.generativeai as genai
 
-# API constants
-API_URL = "https://api.openai.com/v1/responses"
-MODEL_NAME = "gpt-5-nano"
+# 🔹 Configure Gemini API
+# 👉 Replace with your Gemini API key from Google AI Studio
+GEMINI_API_KEY = "YOUR_GEMINI_API_KEY"
+genai.configure(api_key=GEMINI_API_KEY)
+
+MODEL_NAME = "gemini-1.5-flash"  # free, fast, and supports long text
 
 # PDF extraction libraries
 try:
@@ -28,8 +30,9 @@ except:
 
 
 st.set_page_config(page_title="AI Study Assistant", page_icon=":mortar_board:", layout="wide")
-st.title("AI Study Assistant (gpt-5-nano)")
-st.markdown("Summarize text, create flashcards, Q&A, and mind-maps using the **Responses API** with `gpt-5-nano`.")
+st.title("AI Study Assistant (Gemini API)")
+st.markdown("Summarize text, create flashcards, Q&A, and mind-maps using **Gemini free API**.")
+
 
 # Sidebar controls
 st.sidebar.header("Settings")
@@ -60,36 +63,14 @@ def extract_text_from_pdf_bytes(pdf_bytes: bytes) -> str:
     return ""
 
 
-# --- OpenAI helper ---
-def call_openai(prompt: str, max_tokens: int = 800, temperature: float = 0.3) -> str:
-    headers = {
-        "Content-Type": "application/json",
-        "Authorization": f"Bearer {os.getenv('OPENAI_API_KEY')}"  # Read key from Streamlit Secrets/Env
-    }
-    payload = {
-        "model": MODEL_NAME,
-        "input": prompt,
-        "max_output_tokens": max_tokens,
-        "temperature": temperature
-    }
-
+# --- Gemini helper ---
+def call_gemini(prompt: str, model: str = MODEL_NAME) -> str:
     try:
-        resp = requests.post(API_URL, headers=headers, json=payload)
-        resp.raise_for_status()
-        data = resp.json()
-
-        # Parse new Responses API format
-        if "output" in data:
-            parts = []
-            for item in data["output"]:
-                for c in item.get("content", []):
-                    if c.get("type") == "text":
-                        parts.append(c.get("text", ""))
-            return "\n".join(parts).strip()
-
-        return str(data)
+        m = genai.GenerativeModel(model)
+        resp = m.generate_content(prompt)
+        return resp.text
     except Exception as e:
-        return f"[API call failed] {e}"
+        return f"[Gemini API error] {e}"
 
 
 # --- Input section ---
@@ -117,30 +98,30 @@ with st.expander("Show first 3000 chars"):
 
 # --- Generation ---
 if st.button("Generate summary, flashcards, Q&A & mind-map"):
-    with st.spinner("Talking to gpt-5-nano..."):
+    with st.spinner("Talking to Gemini..."):
         context = input_text[:60000]
 
         # 1. Summary
         summary_prompt = f"Summarize the following in {num_bullets} concise bullet points:\n\n{context}"
-        summary_raw = call_openai(summary_prompt, max_tokens=400)
+        summary_raw = call_gemini(summary_prompt)
 
         # 2. Flashcards
         flashcards_prompt = (
             f"Create {num_flashcards} flashcards in JSON format "
             f"with 'question' and 'answer' from this content:\n\n{context}"
         )
-        flashcards_raw = call_openai(flashcards_prompt, max_tokens=800)
+        flashcards_raw = call_gemini(flashcards_prompt)
 
         # 3. Short Q&A
         qa_prompt = f"Generate {num_short_qa} short Q&A pairs (Q: ... A: ...):\n\n{context}"
-        short_qa_raw = call_openai(qa_prompt, max_tokens=500)
+        short_qa_raw = call_gemini(qa_prompt)
 
         # 4. Mind-map
         mindmap_prompt = (
             "Create a mind-map in Graphviz DOT format for this content. "
             "Output ONLY DOT code.\n\n" + context
         )
-        mindmap_raw = call_openai(mindmap_prompt, max_tokens=600)
+        mindmap_raw = call_gemini(mindmap_prompt)
 
     st.success("✅ Done!")
 
